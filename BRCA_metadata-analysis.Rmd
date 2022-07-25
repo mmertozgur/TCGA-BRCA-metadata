@@ -190,7 +190,7 @@ A variable named immune_signature is created and appended in the BRCA_RNASeq dat
 ```{r}
 RNASeq_w_immune = BRCA_RNASeq %>% 
   mutate(immune_signature = (CD8A + CD3E + GZMB + PRF1) / 4)
-saveRDS(object = BRCA_RNASeq, file= "RNASeq_w_immune.RDS")
+saveRDS(object = RNASeq_w_immune, file= "RNASeq_w_immune.RDS")
 ```
 
 Merging the RNASeq_w_immune and BRCA_miRNA data by sample_id.
