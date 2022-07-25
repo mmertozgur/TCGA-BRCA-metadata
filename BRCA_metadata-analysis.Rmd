@@ -1,0 +1,229 @@
+---
+title: "TCGA-BRCA-metadata"
+author: "M.Mert Özgür"
+date: '2022-07-25'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## TCGA-BRCA Data Analysis and Metadata Compilation
+
+The project described below focuses on the analysis of the breast cancer (BRCA) data available on the TCGA-BRCA project. To attain that, four different data sets included in the TCGA-BRCA project are downloaded. Generated data is processed and necessary analysis to achieve proper data clearing have been done. Each of the assessed and cleared data (BRCA RNASeq, BRCA miRNA-Seq, BRCA clinical subtype, BRCA patient data) are being compiled to generate a metadata  which can be utilized by TCGA Explorer.
+
+Download required packages.
+```{r, eval = F}
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("TCGAbiolinks")
+BiocManager::install("dplyr")
+BiocManager::install("SummarizedExperiment")
+BiocManager::install("edgeR")
+BiocManager::install("tidyverse")
+library(TCGAbiolinks)
+library(dplyr)
+library(SummarizedExperiment)
+library(edgeR)
+library(tidyverse) #package attaches ggplot2.
+```
+
+Get information about the TCGA-BRCA project.
+```{r}
+getProjectSummary("TCGA-BRCA")
+```
+
+### Query-Download-Prepare the BRCA-RNASeq data
+```{r eval= F}
+query_RNAseq = GDCquery(
+  project = "TCGA-BRCA",
+  data.category = "Transcriptome Profiling",
+  experimental.strategy = "RNA-Seq",
+  workflow.type = "STAR - Counts",
+  data.type = "Gene Expression Quantification"
+)
+colnames(query_RNAseq) # see queried RNASeq data information, Total of 12 column. 
+
+GDCdownload(
+  query = query_RNAseq,
+  method = "client",
+  directory = "TCGA_TranscriptomeProfiling_BRCA"
+)
+BRCA_TranscriptomeProfiling = GDCprepare(
+  query = query_RNAseq,
+  save = TRUE,
+  save.filename = "prepdata_BRCA-RNAseq",
+  directory = "TCGA_TranscriptomeProfiling_BRCA"
+)
+BRCA_RNASeqraw = assay(BRCA_TranscriptomeProfiling)
+saveRDS(object = BRCA_RNASeqraw,
+        file = "BRCA_RNASeqraw.RDS") #RNASeq raw data is saved as R object.
+saveRDS(object = BRCA_TranscriptomeProfiling,
+        file = "BRCA_TranscriptomeProfiling.RDS")
+```
+
+### Query-Download-Prepare BRCA-miRNA-Seq data
+```{r eval= F}
+query_miRSeq = GDCquery(
+  project = "TCGA-BRCA",
+  data.category = "Transcriptome Profiling",
+  experimental.strategy = "miRNA-Seq",
+  workflow.type = "BCGSC miRNA Profiling",
+  data.type = "miRNA Expression Quantification"
+)
+colnames(query_miRSeq)
+GDCdownload(
+  query = query_miRSeq,
+  method = "client",
+  directory = "BRCA-miRNA-Seq"
+)
+BRCA_miRNASeqraw = GDCprepare(
+  query = query_miRSeq,
+  save = TRUE,
+  save.filename = "prepdata_BRCA_miRNA-Seq",
+  directory = "BRCA-miRNA-Seq"
+)
+saveRDS(object = BRCA_miRNASeqraw,
+        file = "BRCA_miRNASeqraw.RDS") #miRNA-Seq raw data is saved as a R object. 
+
+```
+
+### Get Molecular Subtype data
+```{r eval= F}
+BRCA_subtype = TCGAquery_subtype("BRCA")
+saveRDS(object = BRCA_subtype, file = "BRCA_subtype.RDS")
+```
+
+### Get patient clinical data
+```{r eval= F}
+BRCA_patient_clinical = as.data.frame(colData(BRCA_TranscriptomeProfiling))
+saveRDS(object = BRCA_patient_clinical, file = "BRCA_patient_clinical.RDS")
+```
+
+### TCGA-BRCA RNASeq data analysis and processing
+Gene version analysis for TCGM-BRCA RNASeq Data. Different versions of the genes having the same name (gene_name) whose Ensemble gene_ids differ are studied. Different versions are labeled with their Ensemble gene_ids. BRCA RNASeq data is prepared to study gene versions. (Versions of the genes:Genes having the same name but different ensemble gene_id due to various reasons)
+
+```{r}
+brca_geneinfo = readRDS("BRCA_TranscriptomeProfiling.RDS")
+brca_geneinfo = as.data.frame(rowData(BRCA_TranscriptomeProfiling))
+brca_gene.version = brca_geneinfo %>% 
+  select(gene_id, gene_name) %>% mutate(duplicated_info = duplicated(brca_geneinfo$gene_name) | duplicated(brca_geneinfo$gene_name, fromLast= T)) 
+
+for(p in 1:length(brca_gene.version$gene_name)) {
+  if (brca_gene.version$duplicated_info[p] == FALSE){
+    
+  } else {
+    brca_gene.version[p,"gene_name"] = paste(brca_gene.version[p,"gene_name"],brca_gene.version[p,"gene_id"] ,sep = "_")
+  }
+}
+
+brca_gene.version = select(brca_gene.version,-c("duplicated_info"))
+saveRDS(object = brca_gene.version, file = "brca_gene.versionENSG.RDS") #save gene version data frame as a R object. 
+```
+
+gene_ids in the RNASeq data are replaced with the new form of the gene_name which includes gene version information. By doing that, different versions can be reached by their name with their associated Ensemble gene_id and can be analyzed for elimination, adjustment etc.
+```{r}
+BRCA_RNASeqraw = readRDS("BRCA_RNASeqraw.RDS")
+BRCA_RNASeqraw = as.data.frame(BRCA_RNASeqraw)
+rownames(BRCA_RNASeqraw) = brca_gene.version[,"gene_name"] 
+```
+
+RNASeq data normalization is performed before the analysis of the gene versions to avoid data loss.
+```{r}
+BRCA_RNASeq = cpm(BRCA_RNASeqraw)
+BRCA_RNASeq = log(BRCA_RNASeq + 1, base = 10) #Data turned to a class of matrix, convert it before go. 
+BRCA_RNASeq= as.data.frame(BRCA_RNASeq)
+```
+
+Transpose the RNASeq data. Gene names are in columns now, thus, data cleaning based on genes is possible.
+```{r}
+BRCA_RNASeq = t(BRCA_RNASeq)  
+BRCA_RNASeq = as.data.frame(BRCA_RNASeq) 
+```
+
+Merging the BRCA RNASeq and miRNA-Seq data will be done according to the sample_id. Thus sample_id (substring of the TCGA barcode) were extracted and mutated (appended) in a separate column named sample_id. Since the subtype data and clinical data will be merged via the patient_id, patient_id also included in the data.
+```{r}
+BRCA_RNASeq <- BRCA_RNASeq %>% 
+  mutate(sample_id = substr(rownames(.), 1,16 ))%>%
+  mutate(patient_id = substr(rownames(.),1,12)) %>%
+  select(sample_id, patient_id, everything())
+saveRDS(object = BRCA_RNASeq, file = "BRCA_RNASeq.RDS")  #BRCA RNASeq data which was prepared for cleaning process is ready. Data is saved.
+
+```
+
+### TCGA-BRCA miRNA-Seq data analysis and processing
+```{r}
+BRCA_miRNASeqraw = readRDS("BRCA_miRNASeqraw.RDS")
+BRCA_miRNA = select(BRCA_miRNASeqraw, c(starts_with("miRNA_ID"),starts_with("read_count") ))
+miRNA_names = select(BRCA_miRNASeqraw, c(starts_with("miRNA_ID")))
+miRNA_counts = select(BRCA_miRNASeqraw, starts_with("read_count"))
+```
+
+miRNA-Seq data is normalized.Column naming (patient barcode) are adjusted in the data (unnecessary parts removed).
+```{r}
+miRNA_counts = cpm(miRNA_counts)
+miRNA_counts = log(miRNA_counts + 1, base = 10)
+rm(BRCA_miRNA)
+BRCA_miRNA = cbind(miRNA_names,miRNA_counts)
+colnames(BRCA_miRNA) = gsub("read_count_","",colnames(BRCA_miRNA))
+```
+
+miRNA Seq data is transposed.
+```{r}
+BRCA_miRNA_ready = t(BRCA_miRNA)
+colnames(BRCA_miRNA_ready) = BRCA_miRNA$miRNA_ID
+BRCA_miRNA = data.frame(BRCA_miRNA_ready[-1,])
+rm(BRCA_miRNA_ready)
+```
+
+sample_id and patient_id are appended in BRCA_miRNA data. The data is ready for merging.
+```{r}
+BRCA_miRNA = BRCA_miRNA %>% 
+  mutate(sample_id = substr(rownames(.),1,16)) %>% 
+  mutate(patient_id = substr(rownames(.),1,12)) %>% 
+  select(sample_id,patient_id,everything())
+saveRDS(object = BRCA_miRNA, file= "BRCA_miRNA.RDS") #BRCA miRNA-Seq data which was prepared for cleaning process is ready. Data is saved.
+```
+
+A variable named immune_signature is created and appended in the BRCA_RNASeq data.
+```{r}
+RNASeq_w_immune = BRCA_RNASeq %>% 
+  mutate(immune_signature = (CD8A + CD3E + GZMB + PRF1) / 4)
+saveRDS(object = BRCA_RNASeq, file= "RNASeq_w_immune.RDS")
+```
+
+Merging the RNASeq_w_immune and BRCA_miRNA data by sample_id.
+```{r}
+RNASeq_miRNASeq = full_join(RNASeq_w_immune,BRCA_miRNA, by = "sample_id")
+saveRDS(object = RNASeq_miRNASeq, file= "RNASeq_miRNASeq.RDS")
+```
+
+### Data Analysis
+Scatter plot: hsa.mir.155 vs CD8A 
+```{r}
+RNASeq_miRNASeq %>% 
+  ggplot(aes(hsa.mir.155,CD8A)) +
+  geom_point(color = 'blue') +
+  geom_smooth()
+  
+```
+Scatter plot: CD3E vs CD8A 
+```{r}
+RNASeq_miRNASeq %>% 
+  ggplot(aes(CD3E,CD8A)) +
+  geom_point(color = 'orange') +
+  geom_smooth(color = "blue" )
+
+```
+Scatter plot: immune_signature vs FOXP3
+```{r}
+RNASeq_miRNASeq %>% 
+  ggplot(aes(immune_signature,FOXP3)) +
+  geom_point(color = 'red') +
+  geom_smooth(color = "green" )
+```
+
+
+
+
