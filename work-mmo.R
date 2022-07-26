@@ -13,35 +13,43 @@ table(BRCA_patient_clinical$vital_status, useNA = "always")
 
 p = BRCA_patient_clinical
 s = BRCA_subtype
-#
+
 colnames(BRCA_patient_clinical)
 colnames(BRCA_subtype)
 colnames(BRCA_patient_clinical[,62:85])
 
-#To check whether there is any NA values that do not take place as a character in the BRCA subtype data. 
-for (i in 1:24) {
-  if (sum(is.na(p[i])) == 0 ) {
-    print(i)
+
+table(p$paper_Tumor_Grade, useNA = "always")
+table(p$paper_CNV.Clusters, useNA = "always")
+table(p$paper_miRNA.Clusters, useNA = "always")
+
+
+
+
+na.analyze = function(p) {
+  NA_ascharacter = c()
+  NA_asmissing = c()
+  NA_analysis = as.data.frame(colnames(p))
+  for (c in 1:nrow(NA_analysis)) {
+    missing_counter = 0
+    character_counter = 0 
+    for (e in 1:nrow(p[c])) {
+      missing_stat = is.na(p[e,c])
+      missing_aschar_stat= p[e,c]
+      if (missing_stat == TRUE) {
+        next
+      } else if (missing_aschar_stat == "NA") {
+        character_counter = character_counter + 1
+      }
+    }
+    NA_ascharacter = append(NA_ascharacter,character_counter)
+    missing_counter = sum(is.na(p[c]))
+    NA_asmissing = append(NA_asmissing,missing_counter)
   }
+  
+  NA_analysis = NA_analysis %>%  mutate(NA_ascharacter_count = NA_ascharacter) %>% mutate(NA_asmissing_count = NA_asmissing)
+  return(NA_analysis)
 }
-
-
-
-
-counter = 0 
-for (x in 1:nrow(s[6])) {
-  if( s[x,6] == "NA") {
-    counter = counter + 1
-  } 
-}
-print(counter)
-
-
-
-
-
-
-
 
 
 
