@@ -105,7 +105,7 @@ saveRDS(object = BRCA_patient_clinical, file = "BRCA_patient_clinical.RDS")
 Gene version analysis for TCGM-BRCA RNASeq Data. Different versions of the genes having the same name (gene_name) whose Ensemble gene_ids differ are studied. Different versions are labeled with their Ensemble gene_ids. BRCA RNASeq data is prepared to study gene versions. (Versions of the genes:Genes having the same name but different ensemble gene_id due to various reasons)
 
 ```{r}
-brca_geneinfo = readRDS("BRCA_TranscriptomeProfiling.RDS")
+BRCA_TranscriptomeProfiling = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_TranscriptomeProfiling.RDS")
 brca_geneinfo = as.data.frame(rowData(BRCA_TranscriptomeProfiling))
 brca_gene.version = brca_geneinfo %>% 
   select(gene_id, gene_name) %>% mutate(duplicated_info = duplicated(brca_geneinfo$gene_name) | duplicated(brca_geneinfo$gene_name, fromLast= T)) 
@@ -124,7 +124,7 @@ saveRDS(object = brca_gene.version, file = "brca_gene.versionENSG.RDS") #save ge
 
 gene_ids in the RNASeq data are replaced with the new form of the gene_name which includes gene version information. By doing that, different versions can be reached by their name with their associated Ensemble gene_id and can be analyzed for elimination, adjustment etc.
 ```{r}
-BRCA_RNASeqraw = readRDS("BRCA_RNASeqraw.RDS")
+BRCA_RNASeqraw = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_RNASeqraw.RDS")
 BRCA_RNASeqraw = as.data.frame(BRCA_RNASeqraw)
 rownames(BRCA_RNASeqraw) = brca_gene.version[,"gene_name"] 
 ```
@@ -154,7 +154,7 @@ saveRDS(object = BRCA_RNASeq, file = "BRCA_RNASeq.RDS")  #BRCA RNASeq data which
 
 ### TCGA-BRCA miRNA-Seq data analysis and processing
 ```{r}
-BRCA_miRNASeqraw = readRDS("BRCA_miRNASeqraw.RDS")
+BRCA_miRNASeqraw = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_miRNASeqraw.RDS")
 BRCA_miRNA = select(BRCA_miRNASeqraw, c(starts_with("miRNA_ID"),starts_with("read_count") ))
 miRNA_names = select(BRCA_miRNASeqraw, c(starts_with("miRNA_ID")))
 miRNA_counts = select(BRCA_miRNASeqraw, starts_with("read_count"))
