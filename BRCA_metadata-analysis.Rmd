@@ -199,6 +199,86 @@ RNASeq_miRNASeq = full_join(RNASeq_w_immune,BRCA_miRNA, by = "sample_id")
 saveRDS(object = RNASeq_miRNASeq, file= "RNASeq_miRNASeq.RDS")
 ```
 
+### Clinical Data Analysis
+There are two data sets which include clinical information about the samples. Accordingly, some of the variables in those two data sets are common for each sample and furthermore, either of them may include more recent information. Analysis workflow begins with the exploratory analysis of each variables in these two data sets. After identifying common variables, each of the duplicates (common variables-columns) are assessed in order to identify more recent information. To analyze missing data, function na.analyze is constructed as data structure necessitates.  
+
+
+#### Function: na.analyze()
+This function takes a data frame as an input. Since the data may contain missing data as  factor -"NA" or <NA> or both, na.analyze function enables to differentiate and count them separately. na.analyze() generates an output of data frame which shows: each column name and index of the input data frame, total number of "NA" count in each column and total number of <NA> in each column. Thus, the three variables of the output data frame are: column-names, NA_ascharacter_count and NA_asmissing_count.
+```{r}
+na.analyze = function(p) {
+  NA_ascharacter = c()
+  NA_asmissing = c()
+  NA_analysis = as.data.frame(colnames(p))
+  for (c in 1:nrow(NA_analysis)) {
+    missing_counter = 0
+    character_counter = 0 
+    for (e in 1:nrow(p[c])) {
+      missing_stat = is.na(p[e,c])
+      missing_aschar_stat= p[e,c]
+      if (missing_stat == TRUE) {
+        next
+      } else if (missing_aschar_stat == "NA") {
+        character_counter = character_counter + 1
+      }
+    }
+    NA_ascharacter = append(NA_ascharacter,character_counter)
+    missing_counter = sum(is.na(p[c]))
+    NA_asmissing = append(NA_asmissing,missing_counter)
+  }
+  
+  NA_analysis = NA_analysis %>%  mutate(NA_ascharacter_count = NA_ascharacter) %>% mutate(NA_asmissing_count = NA_asmissing)
+  return(NA_analysis)
+}
+```
+
+
+```{r}
+BRCA_patient_clinical = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_patient_clinical.RDS")
+BRCA_subtype = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_subtype.RDS")
+
+na.analyzed_patient_clinical = na.analyze(BRCA_patient_clinical)
+na.analyzed_subtype = na.analyze(BRCA_subtype)
+
+
+na.analyzed_patient_clinical = na.analyzed_patient_clinical %>% mutate(total_NA = NA_ascharacter_count + NA_asmissing_count) %>% 
+  mutate(Available_from1226 = 1226- total_NA)
+  
+na.analyzed_subtype = na.analyzed_subtype %>% mutate(total_NA = NA_ascharacter_count + NA_asmissing_count) %>% 
+  mutate(Available_from1087 = 1087- total_NA)
+
+```
+
+BRCA_subtype data consists of 24 variables. BRCA_patient_clinical data consists of 85 variables. According to analysis, all of the 24 variable in subtype data relocated on the last 24 column of the BRCA_patient_clinical data. There are also some common variables in the BRCA_patient_clinical data which have a duplicate within the same data frame. All of the duplicate variables were analyzed and variables including more recent information are selected before merging of the clinical data to the transcriptome profiling data. 
+
+```{r}
+withinpatient = na.analyzed_patient_clinical[62:85,]
+common_comparison_table = cbind(withinpatient,na.analyzed_subtype)
+View(common_comparison_table)
+View(na.analyzed_patient_clinical)
+```
+
+Based on the results of the above missing data analysis, all of the BRCA_subtype data which are already included in BRCA_patient_clinical data are not updated. Hence, BRCA_patient_clinical versions of these variables (columns) contains more up-to-date information. Data clearing based on the results described is performed. 
+
+```{r}
+BRCA_patient_clinical = select(BRCA_patient_clinical,-c(paper_pathologic_stage,paper_days_to_last_followup,paper_Tumor_Grade,
+                                                        paper_vital_status,paper_days_to_birth,paper_days_to_death))
+saveRDS(object = BRCA_patient_clinical, file= "BRCA_patient_clinical_clear.RDS")
+```
+Merging the RNASeq_w_immune and BRCA_miRNA data by sample_id.
+
+```{r}
+BRCA_patient_clinical_clear <- readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_patient_clinical_clear.RDS")
+#Those columns are also dropped in order to eliminate malfunctions which may occur during the merging. 
+BRCA_patient_clinical_clear = select(BRCA_patient_clinical_clear,-c(bcr_patient_barcode,paper_patient,sample,sample_submitter_id,submitter_id))
+
+RNASeq_miRNASeq =  RNASeq_miRNASeq %>%  rename_at("patient_id.x", ~"patient") %>% 
+  select(-patient_id.y)
+BRCA_metadata = full_join(RNASeq_miRNASeq,BRCA_patient_clinical_clear, by = "patient")
+saveRDS(object = BRCA_metadata, file= "BRCA_metadata.RDS")
+```
+
+
 ### Data Analysis
 Scatter plot: hsa.mir.155 vs CD8A 
 ```{r}

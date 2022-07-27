@@ -1,3 +1,10 @@
+library(TCGAbiolinks)
+library(dplyr)
+library(SummarizedExperiment)
+library(edgeR)
+library(tidyverse)
+
+
 BRCA_patient_clinical = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_patient_clinical.RDS")
 BRCA_subtype = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_subtype.RDS")
 BRCA_TranscriptomeProfiling = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_TranscriptomeProfiling.RDS")
@@ -50,6 +57,41 @@ na.analyze = function(p) {
   NA_analysis = NA_analysis %>%  mutate(NA_ascharacter_count = NA_ascharacter) %>% mutate(NA_asmissing_count = NA_asmissing)
   return(NA_analysis)
 }
+
+
+
+
+na.analyzed_patient = na.analyze(patient)
+na.analyzed_subtype = na.analyze(subtype)
+
+
+na.analyzed_patient = na.analyzed_patient %>% mutate(total_NA = NA_ascharacter_count + NA_asmissing_count) %>% 
+  mutate(Available_from1226 = 1226- total_NA)
+  
+na.analyzed_subtype = na.analyzed_subtype %>% mutate(total_NA = NA_ascharacter_count + NA_asmissing_count) %>% 
+  mutate(Available_from1087 = 1087- total_NA)
+
+withinpatient = na.analyzed_patient[62:85,]
+common_comparison_table = cbind(withinpatient,na.analyzed_subtype)
+View(common_comparison_table)
+
+
+
+
+
+
+
+
+sum(duplicated(patient$paper_patient, fromLast = TRUE) | duplicated(patient$paper_patient)) #149
+sum(duplicated(patient$paper_patient)) #142
+sum(duplicated(patient$patient)) #131
+
+sum(duplicated(subtype$patient, fromLast = TRUE) | duplicated(subtype$patient)) #0
+sum(duplicated(subtype$patient)) #0
+View(na.analyzed_patient[62:85,])
+
+
+
 
 
 
