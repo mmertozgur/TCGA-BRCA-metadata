@@ -304,6 +304,20 @@ RNASeq_miRNASeq %>%
   geom_smooth(color = "green" )
 ```
 
+CD8A in two gender classes (male vs female) (jitters)
+```{r}
+BRCA_metadata %>% 
+  ggplot(aes(x=gender, y=CD8A, fill= gender)) +
+  geom_boxplot()+
+  geom_jitter(color="black",size=0.4, alpha= 0.9) +
+  ggtitle("CD8A: male vs female")
+
+```
+
+
+
+
+
 
 
 

@@ -94,4 +94,3 @@ View(na.analyzed_patient[62:85,])
 
 
 
-
