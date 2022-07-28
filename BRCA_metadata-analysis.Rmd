@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## TCGA-BRCA Data Analysis and Metadata Compilation
 
-The project described below focuses on the analysis of the breast cancer (BRCA) data available on the TCGA-BRCA project. To attain that, four different data sets included in the TCGA-BRCA project are downloaded. Generated data is processed and necessary analysis to achieve proper data clearing have been done. Each of the assessed and cleared data (BRCA RNASeq, BRCA miRNA-Seq, BRCA clinical subtype, BRCA patient data) are being compiled to generate a metadata  which can be utilized by TCGA Explorer.
+The project described below focuses on the analysis of the breast cancer (BRCA) data available on the TCGA-BRCA project. To attain that, four different data sets included in the TCGA-BRCA project are downloaded. Generated data is processed and necessary analysis to achieve proper data clearing have been done. Each of the assessed and cleared data (BRCA RNASeq, BRCA miRNA-Seq, BRCA clinical subtype, BRCA patient data) are being compiled to generate a metadata  which can be utilized by TCGA E#######.
 
 Download required packages.
 ```{r, eval = F}
@@ -155,31 +155,27 @@ saveRDS(object = BRCA_RNASeq, file = "BRCA_RNASeq.RDS")  #BRCA RNASeq data which
 ### TCGA-BRCA miRNA-Seq data analysis and processing
 ```{r}
 BRCA_miRNASeqraw = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_miRNASeqraw.RDS")
-BRCA_miRNA = select(BRCA_miRNASeqraw, c(starts_with("miRNA_ID"),starts_with("read_count") ))
-miRNA_names = select(BRCA_miRNASeqraw, c(starts_with("miRNA_ID")))
-miRNA_counts = select(BRCA_miRNASeqraw, starts_with("read_count"))
+miRNA = select(BRCA_miRNASeqraw, c(starts_with("miRNA_ID"),starts_with("read_count") ))
+miRNA_names = select(miRNA, c(starts_with("miRNA_ID")))
+miRNA_counts = select(miRNA, starts_with("read_count"))
 ```
 
 miRNA-Seq data is normalized.Column naming (patient barcode) are adjusted in the data (unnecessary parts removed).
 ```{r}
 miRNA_counts = cpm(miRNA_counts)
 miRNA_counts = log(miRNA_counts + 1, base = 10)
-rm(BRCA_miRNA)
-BRCA_miRNA = cbind(miRNA_names,miRNA_counts)
-colnames(BRCA_miRNA) = gsub("read_count_","",colnames(BRCA_miRNA))
-```
 
-miRNA Seq data is transposed.
-```{r}
-BRCA_miRNA_ready = t(BRCA_miRNA)
-colnames(BRCA_miRNA_ready) = BRCA_miRNA$miRNA_ID
-BRCA_miRNA = data.frame(BRCA_miRNA_ready[-1,])
-rm(BRCA_miRNA_ready)
+colnames(miRNA_counts) = gsub("read_count_","",colnames(miRNA_counts))
+
+miRNA_counts = t(miRNA_counts)#miRNA Seq data is transposed.
+miRNA_counts = as.data.frame(miRNA_counts)
+colnames(miRNA_counts) = miRNA_names$miRNA_ID #miRNA names are placed. 
+
 ```
 
 sample_id and patient_id are appended in BRCA_miRNA data. The data is ready for merging.
 ```{r}
-BRCA_miRNA = BRCA_miRNA %>% 
+BRCA_miRNA = miRNA_counts %>% 
   mutate(sample_id = substr(rownames(.),1,16)) %>% 
   mutate(patient_id = substr(rownames(.),1,12)) %>% 
   select(sample_id,patient_id,everything())
@@ -280,10 +276,10 @@ saveRDS(object = BRCA_metadata, file= "BRCA_metadata.RDS")
 
 
 ### Data Analysis
-Scatter plot: hsa.mir.155 vs CD8A 
+Scatter plot: hsa-mir-155 vs CD8A 
 ```{r}
-RNASeq_miRNASeq %>% 
-  ggplot(aes(hsa.mir.155,CD8A)) +
+BRCA_metadata %>% 
+  ggplot(aes(`hsa-mir-155`,CD8A)) +
   geom_point(color = 'blue') +
   geom_smooth()
   
