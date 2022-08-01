@@ -350,6 +350,36 @@ ggsurvplot(fit,
 
 
 
+```{r}
+surv_CD8A = select(BRCA_metadata[1:1548,],c(patient,days_to_last_follow_up,days_to_death,vital_status,
+                                   CD8A))
+
+
+median_CD8A = median(surv_CD8A$CD8A, na.rm = TRUE)
+
+surv_CD8A = surv_CD8A %>% 
+  mutate(CD8A_category = case_when(
+    CD8A > median_CD8A ~ "high" , 
+    CD8A < median_CD8A ~ "low"
+  )) %>% 
+  mutate(days_to_event = case_when(
+    is.na(days_to_death) == FALSE ~ days_to_death,
+    TRUE ~ days_to_last_follow_up
+  )) %>% 
+  mutate(status = case_when(
+    vital_status == "Alive" ~ 1,
+    vital_status =="Dead" ~ 0
+  ))
+
+fit_CD8A <- surv_fit(Surv(days_to_event, status) ~ CD8A_category, data = surv_CD8A)
+ggsurvplot(fit_CD8A,
+           data=surv_CD8A,
+           risk.table = TRUE,
+           pval = TRUE,
+           conf.int = TRUE,
+           xlab = "Time in days",
+           ggtheme = theme_bw() )
+```
 
 
 
