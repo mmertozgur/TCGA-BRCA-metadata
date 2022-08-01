@@ -133,7 +133,7 @@ ggsurvplot(fit,
 
 
 
-
+View(BRCA_metadata[duplicated(BRCA_metadata$patient),sample(1:dim(BRCA_metadata)[2], size = 100)])
 
 
 
