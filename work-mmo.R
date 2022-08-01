@@ -90,6 +90,62 @@ sum(duplicated(subtype$patient, fromLast = TRUE) | duplicated(subtype$patient)) 
 sum(duplicated(subtype$patient)) #0
 View(na.analyzed_patient[62:85,])
 
+# CD8A,CD3E,GZMB,PRF1 immune signature; survival 
+install.packages("survminer")
+install.packages("survival")
+
+library(survminer)
+library(survival)
+brca_surv = brca_surv[1:1548,]
+brca_surv = select(BRCA_metadata,c(patient,days_to_last_follow_up,days_to_death,vital_status,
+                                   immune_signature))
+brca_surv = brca_surv[1:1548,]
+median_immune_signature = median(brca_surv$immune_signature, na.rm = TRUE)
+brca_surv = brca_surv %>% 
+  mutate(immune_category = case_when(
+    immune_signature > median_immune_signature ~ "high" , 
+    immune_signature < median_immune_signature ~ "low"
+  )) %>% 
+  mutate(days_to_event = case_when(
+    is.na(days_to_death) == FALSE ~ days_to_death,
+    TRUE ~ days_to_last_follow_up
+  )) %>% 
+  mutate(status = case_when(
+    vital_status == "Alive" ~ 1,
+    vital_status =="Dead" ~ 0
+  ))
+
+
+fit <- surv_fit(Surv(days_to_event, status) ~ immune_category, data = brca_surv)
+ggsurvplot(fit,
+           data=brca_surv,
+           risk.table = TRUE,
+           pval = TRUE,
+           conf.int = TRUE,
+           xlab = "Time in days",
+           ggtheme = theme_bw() )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
