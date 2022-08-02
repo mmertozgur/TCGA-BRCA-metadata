@@ -319,13 +319,12 @@ library(survival)
 BRCA_metadata <- readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_metadata.RDS")
 brca_surv = select(BRCA_metadata,c(patient,days_to_last_follow_up,days_to_death,vital_status,
                                    immune_signature))
-
-brca_surv = brca_surv[1:1548,] #last rows containing all-NAs are eliminated.
+brca_surv = distinct(brca_surv) # if entire row is duplicated- it is eliminated which makes sense because it keeps different data from the same patient. 
 median_immune_signature = median(brca_surv$immune_signature, na.rm = TRUE)
 
 brca_surv = brca_surv %>% 
   mutate(immune_category = case_when(
-    immune_signature > median_immune_signature ~ "high" , 
+    immune_signature >= median_immune_signature ~ "high" , 
     immune_signature < median_immune_signature ~ "low"
   )) %>% 
   mutate(days_to_event = case_when(
@@ -333,8 +332,8 @@ brca_surv = brca_surv %>%
     TRUE ~ days_to_last_follow_up
   )) %>% 
   mutate(status = case_when(
-    vital_status == "Alive" ~ 1,
-    vital_status =="Dead" ~ 0
+    vital_status == "Alive" ~ 0,
+    vital_status =="Dead" ~ 1
   ))
 
 fit <- surv_fit(Surv(days_to_event, status) ~ immune_category, data = brca_surv)
@@ -342,9 +341,14 @@ ggsurvplot(fit,
            data=brca_surv,
            risk.table = TRUE,
            pval = TRUE,
-           conf.int = TRUE,
+           conf.int = FALSE,
            xlab = "Time in days",
-           ggtheme = theme_bw() )
+           ggtheme = theme_bw(),
+           legend.labs = c("High","Low"),
+           surv.median.line = "hv") +
+  labs(
+    title = "BRCA-Immune Signature Survival Curve"
+  )
 
 ```
 
@@ -353,7 +357,8 @@ ggsurvplot(fit,
 ```{r}
 surv_CD8A = select(BRCA_metadata,c(patient,days_to_last_follow_up,days_to_death,vital_status,
                                    CD8A,definition))
-
+surv_CD8A = distinct(surv_CD8A)
+surv_CD8A = filter(surv_CD8A, definition == "Primary solid Tumor")
 median_CD8A = median(surv_CD8A$CD8A, na.rm = TRUE)
 
 surv_CD8A = surv_CD8A %>% 
@@ -366,8 +371,8 @@ surv_CD8A = surv_CD8A %>%
     TRUE ~ days_to_last_follow_up
   )) %>% 
   mutate(status = case_when(
-    vital_status == "Alive" ~ 1,
-    vital_status =="Dead" ~ 0
+    vital_status == "Alive" ~ 0,
+    vital_status =="Dead" ~ 1
   ))
 
 fit_CD8A <- surv_fit(Surv(days_to_event, status) ~ CD8A_category, data = surv_CD8A)
@@ -375,22 +380,27 @@ ggsurvplot(fit_CD8A,
            data=surv_CD8A,
            risk.table = TRUE,
            pval = TRUE,
-           conf.int = TRUE,
+           conf.int = FALSE,
            xlab = "Time in days",
-           ggtheme = theme_bw() )
+           ggtheme = theme_bw(), 
+           legend.labs = c("High","Low"),
+           surv.median.line = "hv") +
+  labs(
+    title = "BRCA-Primary Solid Tumor / CD8A"
+  )
 ```
 
 ```{r}
-surv_CD8A_filtered = select(BRCA_metadata,c(patient,days_to_last_follow_up,days_to_death,vital_status,
-                                   CD8A,definition))
-surv_CD8A_filtered = filter(surv_CD8A_filtered, definition == "Primary solid Tumor")
+surv_ESR1 = select(BRCA_metadata,c(patient,days_to_last_follow_up,days_to_death,vital_status,
+                                   ESR1,definition))
+surv_ESR1 = filter(surv_ESR1, definition == "Primary solid Tumor")
+surv_ESR1 = distinct(surv_ESR1)
+median_ESR1 = median(surv_ESR1$ESR1, na.rm = TRUE)
 
-median_CD8A_filtered = median(surv_CD8A_filtered$CD8A, na.rm = TRUE)
-
-surv_CD8A_filtered = surv_CD8A_filtered %>% 
-  mutate(CD8A_category = case_when(
-    CD8A >= median_CD8A_filtered ~ "high" , 
-    CD8A < median_CD8A_filtered ~ "low"
+surv_ESR1 = surv_ESR1 %>% 
+  mutate(ESR1_category = case_when(
+    ESR1 >= median_ESR1 ~ "high" , 
+    ESR1 < median_ESR1 ~ "low"
   )) %>% 
   mutate(days_to_event = case_when(
     is.na(days_to_death) == FALSE ~ days_to_death,
@@ -401,16 +411,57 @@ surv_CD8A_filtered = surv_CD8A_filtered %>%
     vital_status =="Dead" ~ 1
   ))
 
-fit_CD8A_filtered <- survfit(Surv(days_to_event,status) ~ CD8A_category, data = surv_CD8A_filtered)
-ggsurvplot(fit_CD8A_filtered,
-           data=surv_CD8A_filtered,
+fit_ESR1 <- survfit(Surv(days_to_event,status) ~ ESR1_category, data = surv_ESR1)
+ggsurvplot(fit_ESR1,
+           data=surv_ESR1,
            risk.table = TRUE,
            pval = TRUE,
            conf.int = FALSE,
            break.time.by = 1000,
            xlab = "Time in days",
            surv.median.line = "hv",
-           ggtheme = theme_light() )
+           ggtheme = theme_light(),
+           legend.labs = c("High","Low")) +
+  labs(
+    title = "BRCA-Primary Solid Tumor / ESR1"
+  )
+```
+```{r}
+surv_miR155 = select(BRCA_metadata,c(patient,days_to_last_follow_up,days_to_death,vital_status,
+                                   `hsa-mir-155`,definition))
+surv_miR155 = filter(surv_miR155, definition == "Primary solid Tumor")
+surv_miR155 = distinct(surv_miR155)
+surv_miR155 =  surv_miR155 %>%  rename_at("hsa-mir-155", ~"miR155")
+median_miR155 = median(surv_miR155$miR155, na.rm = TRUE)
+
+surv_miR155 = surv_miR155 %>% 
+  mutate(miR155_category = case_when(
+    miR155 >= median_miR155 ~ "high" , 
+    miR155 < median_miR155 ~ "low"
+  )) %>% 
+  mutate(days_to_event = case_when(
+    is.na(days_to_death) == FALSE ~ days_to_death,
+    TRUE ~ days_to_last_follow_up
+  )) %>% 
+  mutate(status = case_when(
+    vital_status == "Alive" ~ 0,
+    vital_status =="Dead" ~ 1
+  ))
+
+fit_miR155 <- survfit(Surv(days_to_event,status) ~ miR155_category, data = surv_miR155)
+ggsurvplot(fit_miR155,
+           data=surv_miR155,
+           risk.table = TRUE,
+           pval = TRUE,
+           conf.int = FALSE,
+           break.time.by = 1000,
+           xlab = "Time in days",
+           surv.median.line = "hv",
+           ggtheme = theme_light(),
+           legend.labs = c("High","Low")) +
+  labs(
+    title = "BRCA-Primary Solid Tumor / miR-155"
+  )
 ```
 
 

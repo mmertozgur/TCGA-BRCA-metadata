@@ -3,7 +3,8 @@ library(dplyr)
 library(SummarizedExperiment)
 library(edgeR)
 library(tidyverse)
-
+library(survminer)
+library(survival)
 
 BRCA_patient_clinical = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_patient_clinical.RDS")
 BRCA_subtype = readRDS("~/Desktop/TCGA-BRCA-metadata/TCGA-BRCA-metadata/BRCA_subtype.RDS")
