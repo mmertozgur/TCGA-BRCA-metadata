@@ -489,10 +489,7 @@ brca_metadata_wimmune = full_join(BRCA_metadata,brca_immune, by = "patient") # n
 x = distinct(brca_metadata_wimmune) 
 
 ```
-BRCA_miRNA = miRNA_counts %>% 
-  mutate(sample_id = substr(rownames(.),1,16)) %>% 
-  mutate(patient_id = substr(rownames(.),1,12)) %>% 
-  select(sample_id,patient_id,everything())
+
 
 ```{r}
 sessionInfo()
